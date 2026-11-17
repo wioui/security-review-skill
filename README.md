@@ -1,4 +1,9 @@
-# security-review
+# security-review: Secure Code Review Skill for AI-Generated Pull Requests
+
+[![test](https://github.com/wioui/security-review-skill/actions/workflows/test.yml/badge.svg)](https://github.com/wioui/security-review-skill/actions/workflows/test.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![OWASP Top 10:2025](https://img.shields.io/badge/OWASP-Top%2010%3A2025-000000)](https://owasp.org/Top10/2025/)
+[![OWASP ASVS 5.0](https://img.shields.io/badge/OWASP-ASVS%205.0-000000)](https://asvs.owasp.org/)
 
 A coding-agent skill that turns your agent into a diff-scoped secure code reviewer for pull requests, with mandatory extra checks for code written by AI coding agents. It activates only the security domains a change touches, gives every check in those domains an evidence-backed disposition, validates candidates adversarially, and returns machine-readable results that cite OWASP Top 10:2025, OWASP ASVS 5.0, OWASP API Security Top 10:2023, and MITRE CWE.
 
@@ -72,24 +77,45 @@ All skill files live in [`skills/security-review/`](skills/security-review/).
 
 ## Installation
 
-Install the skill with the [Skills CLI](https://skills.sh):
+Install the skill with the [Skills CLI](https://skills.sh) (requires Node.js 22.20 or later):
 
 ```bash
 npx skills add https://github.com/wioui/security-review-skill \
   --skill security-review
 ```
 
-Use `--global` for a user-level installation:
+The skill installs into the current project by default. Add `-g` (`--global`) to make it available in every project, and `-a` (`--agent`) to target one agent. Run `npx skills --help` for all options.
+
+### OpenCode
 
 ```bash
-npx skills add https://github.com/wioui/security-review-skill \
-  --skill security-review \
-  --global
+npx skills add https://github.com/wioui/security-review-skill --skill security-review -a opencode -g
 ```
 
-Run `npx skills --help` for agent selection and non-interactive options.
+This installs into `~/.config/opencode/skills/security-review/`. Without `-g`, it goes into the project's `.agents/skills/`, which OpenCode also reads. To install by hand, copy `skills/security-review/` into `~/.config/opencode/skills/` (all projects) or `.opencode/skills/` (one project). OpenCode picks up new skills on its own; run `/reload` if the skill does not appear.
 
-To install by hand, copy `skills/security-review/` into your agent's skills directory, for example `~/.claude/skills/security-review/` (Claude Code), `~/.config/opencode/skills/security-review/` (OpenCode), or `.agents/skills/security-review/` inside a project.
+OpenCode offers the skill to the model whenever a request matches its description. To load it explicitly, mention it in the prompt: `@security-review review this branch before I merge`. If your `permissions` restrict skills, allow this one in `opencode.json`:
+
+```jsonc
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permissions": [{ "action": "skill", "resource": "security-review", "effect": "allow" }]
+}
+```
+
+### Claude Code
+
+```bash
+npx skills add https://github.com/wioui/security-review-skill --skill security-review -a claude-code -g
+```
+
+This installs into `~/.claude/skills/security-review/`. Without `-g`, it goes into the project's `.claude/skills/`, which you can commit to share the skill with your team. To install by hand, copy `skills/security-review/` into either directory. Claude Code picks up new skills during a session; if `~/.claude/skills/` did not exist when the session started, run `/reload-skills`, then check the skill with `/skills`.
+
+Claude invokes the skill when a request matches its description, or you can type `/security-review`. In local terminal sessions, a personal or project skill replaces Claude Code's built-in `/security-review` command of the same name. To keep the built-in command as well, install with `--rename owasp-security-review` and invoke `/owasp-security-review`.
+
+### Other agents
+
+Codex, Cursor, Gemini CLI, GitHub Copilot, and the other agents the Skills CLI supports work the same way with their `-a` name (`codex`, `cursor`, `gemini-cli`, `github-copilot`). By hand, copy `skills/security-review/` into the agent's skills directory, for example `.agents/skills/security-review/` inside a project.
 
 ## Usage
 
@@ -147,7 +173,7 @@ node <skill-dir>/validate-review.cjs security-review/review.json --gate
 ## Requirements
 
 - A coding agent with tool use. Parallel sub-agents are recommended for the `standard` and `deep` profiles; without them, the parent runs each role in turn and keeps a separate refutation pass.
-- Git, and Node.js 18 or later for the zero-dependency validator.
+- Git, and Node.js 18 or later for the zero-dependency validator (the Skills CLI installer needs Node.js 22.20 or later).
 - Optional: deterministic scanners already installed on the review host (Semgrep, CodeQL, Gitleaks, TruffleHog, OSV-Scanner, Trivy, Checkov, Hadolint, actionlint, zizmor). The skill never installs them.
 - Optional: `gh` or `glab` for reading PR context.
 
