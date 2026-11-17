@@ -1,0 +1,220 @@
+{
+  "$comment": "Machine-readable catalog of the security-review checklist. It is the single source of truth for domain and check IDs: validate-review.cjs enforces it on review.json, and validate-review.test.cjs keeps the Markdown companions and PR-TEMPLATE.md in sync with it.",
+  "version": "1.0",
+  "standards": {
+    "owasp_top10": "OWASP Top 10:2025",
+    "asvs": "OWASP ASVS 5.0.0",
+    "api_top10": "OWASP API Security Top 10:2023",
+    "cwe": "MITRE CWE 4.x"
+  },
+  "domains": [
+    {
+      "id": "AUTHN",
+      "name": "Authentication",
+      "file": "IDENTITY-AND-ACCESS.md",
+      "activation": "diff_signals",
+      "standards": ["A07:2025", "ASVS V6"],
+      "checks": [
+        { "id": "AUTHN-01", "title": "Default-Authenticated Routing", "refs": ["A07:2025", "ASVS V6", "CWE-306"] },
+        { "id": "AUTHN-02", "title": "Standardized Authentication Libraries", "refs": ["ASVS V6"] },
+        { "id": "AUTHN-03", "title": "Memory-Hard Password Hashing", "refs": ["A04:2025", "ASVS V11", "CWE-916"] },
+        { "id": "AUTHN-04", "title": "Brute-Force Rate Limiting", "refs": ["A07:2025", "ASVS V6", "CWE-307"] },
+        { "id": "AUTHN-05", "title": "Enforced Multi-Step MFA State", "refs": ["A07:2025", "ASVS V6", "CWE-287", "CWE-288"] },
+        { "id": "AUTHN-06", "title": "Short-Lived Single-Use Reset Tokens", "refs": ["ASVS V6", "CWE-640"] }
+      ]
+    },
+    {
+      "id": "AUTHZ",
+      "name": "Authorization and Multi-Tenant Isolation",
+      "file": "IDENTITY-AND-ACCESS.md",
+      "activation": "diff_signals",
+      "standards": ["A01:2025", "ASVS V8"],
+      "checks": [
+        { "id": "AUTHZ-01", "title": "Server-Side Action Enforcement", "refs": ["A01:2025", "ASVS V8", "CWE-862"] },
+        { "id": "AUTHZ-02", "title": "Deny-by-Default Policy", "refs": ["A01:2025", "ASVS V8"] },
+        { "id": "AUTHZ-03", "title": "Service-Layer Role Checks", "refs": ["A01:2025", "CWE-285"] },
+        { "id": "AUTHZ-04", "title": "Caller-Scoped Object Lookups", "refs": ["A01:2025", "ASVS V8", "CWE-639"] },
+        { "id": "AUTHZ-05", "title": "Session-Derived Tenant Context", "refs": ["A01:2025", "ASVS V8", "CWE-639"] },
+        { "id": "AUTHZ-06", "title": "Scoped Bulk, Search, and Export Queries", "refs": ["A01:2025", "ASVS V8"] },
+        { "id": "AUTHZ-07", "title": "Write-Path Ownership Checks", "refs": ["A01:2025", "CWE-863"] },
+        { "id": "AUTHZ-08", "title": "Asynchronous Consumer Re-Verification", "refs": ["A01:2025", "CWE-863"] },
+        { "id": "AUTHZ-09", "title": "CSRF Defences on Cookie-Authenticated Mutations", "refs": ["A01:2025", "ASVS V3", "CWE-352"] }
+      ]
+    },
+    {
+      "id": "SESSION",
+      "name": "Sessions and Self-Contained Tokens",
+      "file": "IDENTITY-AND-ACCESS.md",
+      "activation": "diff_signals",
+      "standards": ["ASVS V7", "ASVS V9", "ASVS V3"],
+      "checks": [
+        { "id": "SESSION-01", "title": "Session Identifier Rotation", "refs": ["A07:2025", "ASVS V7", "CWE-384"] },
+        { "id": "SESSION-02", "title": "Hardened Cookie Attributes", "refs": ["ASVS V3", "ASVS V7", "CWE-1004", "CWE-614", "CWE-1275"] },
+        { "id": "SESSION-03", "title": "Strict JWT Cryptographic and Claim Validation", "refs": ["ASVS V9", "CWE-347"] },
+        { "id": "SESSION-04", "title": "Zero Tokens in URLs or Logs", "refs": ["ASVS V7", "CWE-598"] },
+        { "id": "SESSION-05", "title": "Server-Side Session Revocation", "refs": ["ASVS V7", "CWE-613"] },
+        { "id": "SESSION-06", "title": "Refresh Token Rotation and Reuse Detection", "refs": ["ASVS V9", "ASVS V10"] }
+      ]
+    },
+    {
+      "id": "INJECTION",
+      "name": "Input Validation and Injection Prevention",
+      "file": "INPUT-API-AND-FILES.md",
+      "activation": "diff_signals",
+      "standards": ["A05:2025", "ASVS V1", "ASVS V2"],
+      "checks": [
+        { "id": "INJECTION-01", "title": "Parameterized Queries Only", "refs": ["A05:2025", "ASVS V1", "CWE-89"] },
+        { "id": "INJECTION-02", "title": "Context-Aware Output Encoding", "refs": ["A05:2025", "ASVS V1", "CWE-79"] },
+        { "id": "INJECTION-03", "title": "Shell-Free Subprocess Execution", "refs": ["A05:2025", "ASVS V1", "CWE-78"] },
+        { "id": "INJECTION-04", "title": "Allowlisted Outbound URL Fetchers", "refs": ["A01:2025", "ASVS V1", "CWE-918"] },
+        { "id": "INJECTION-05", "title": "Safe Deserialization Formats", "refs": ["A08:2025", "ASVS V1", "CWE-502"] },
+        { "id": "INJECTION-06", "title": "Positive Server-Side Input Validation", "refs": ["ASVS V2", "CWE-20"] }
+      ]
+    },
+    {
+      "id": "API",
+      "name": "API Surface and Schema Security",
+      "file": "INPUT-API-AND-FILES.md",
+      "activation": "diff_signals",
+      "standards": ["API1:2023", "API2:2023", "API3:2023", "API4:2023", "API9:2023", "ASVS V4"],
+      "checks": [
+        { "id": "API-01", "title": "Authenticated Internal and Versioned Endpoints", "refs": ["API2:2023", "API9:2023"] },
+        { "id": "API-02", "title": "Per-Identifier Object Authorization", "refs": ["API1:2023", "ASVS V8", "CWE-639"] },
+        { "id": "API-03", "title": "Explicit Input DTOs Against Mass Assignment", "refs": ["API3:2023", "ASVS V15", "CWE-915"] },
+        { "id": "API-04", "title": "Strict Request Schema Enforcement", "refs": ["ASVS V4", "CWE-20"] },
+        { "id": "API-05", "title": "Pagination Caps and Cost Throttling", "refs": ["API4:2023", "CWE-770"] },
+        { "id": "API-06", "title": "GraphQL Depth, Complexity, and Introspection Controls", "refs": ["API4:2023", "ASVS V4"] },
+        { "id": "API-07", "title": "Cryptographic Webhook Signature Verification", "refs": ["ASVS V4", "CWE-345"] }
+      ]
+    },
+    {
+      "id": "FILES",
+      "name": "File Upload, Path, and Parser Safety",
+      "file": "INPUT-API-AND-FILES.md",
+      "activation": "diff_signals",
+      "standards": ["A01:2025", "A02:2025", "ASVS V5"],
+      "checks": [
+        { "id": "FILES-01", "title": "Canonicalized Path Confinement", "refs": ["A01:2025", "ASVS V5", "CWE-22"] },
+        { "id": "FILES-02", "title": "Zip Slip Archive Extraction Guards", "refs": ["ASVS V5", "CWE-22"] },
+        { "id": "FILES-03", "title": "Content-Type and Byte-Size Upload Validation", "refs": ["ASVS V5", "CWE-434"] },
+        { "id": "FILES-04", "title": "Out-of-Webroot Storage with Generated Filenames", "refs": ["ASVS V5", "CWE-434"] },
+        { "id": "FILES-05", "title": "Hardened XML Parsers Against XXE", "refs": ["A02:2025", "ASVS V1", "CWE-611"] }
+      ]
+    },
+    {
+      "id": "LOGIC",
+      "name": "Business Logic and Concurrency Controls",
+      "file": "BUSINESS-LOGIC.md",
+      "activation": "diff_signals",
+      "standards": ["A06:2025", "ASVS V2", "ASVS V15"],
+      "checks": [
+        { "id": "LOGIC-01", "title": "Server-Enforced Workflow State Machines", "refs": ["A06:2025", "ASVS V2", "CWE-841"] },
+        { "id": "LOGIC-02", "title": "Domain Boundary Checks on Quantities and Amounts", "refs": ["A06:2025", "ASVS V2", "CWE-20", "CWE-1284"] },
+        { "id": "LOGIC-03", "title": "Atomic Concurrency on Balances and Quotas", "refs": ["A06:2025", "ASVS V15", "CWE-362", "CWE-367"] },
+        { "id": "LOGIC-04", "title": "Idempotency and Replay Protection", "refs": ["A06:2025", "ASVS V2"] },
+        { "id": "LOGIC-05", "title": "Cross-Endpoint Business Limit Enforcement", "refs": ["API6:2023"] }
+      ]
+    },
+    {
+      "id": "CRYPTO",
+      "name": "Cryptography and TLS Verification",
+      "file": "CRYPTO-AND-SECRETS.md",
+      "activation": "diff_signals",
+      "standards": ["A04:2025", "ASVS V11", "ASVS V12"],
+      "checks": [
+        { "id": "CRYPTO-01", "title": "Zero Custom Cryptographic Primitives", "refs": ["A04:2025", "ASVS V11", "CWE-327"] },
+        { "id": "CRYPTO-02", "title": "Modern Vetted Algorithms and Authenticated Modes", "refs": ["A04:2025", "ASVS V11", "CWE-327"] },
+        { "id": "CRYPTO-03", "title": "Unique Per-Operation IVs and Nonces", "refs": ["A04:2025", "ASVS V11", "CWE-329", "CWE-323"] },
+        { "id": "CRYPTO-04", "title": "Cryptographically Secure Randomness", "refs": ["A04:2025", "ASVS V11", "CWE-338"] },
+        { "id": "CRYPTO-05", "title": "Mandatory TLS Certificate Verification", "refs": ["ASVS V12", "CWE-295"] },
+        { "id": "CRYPTO-06", "title": "Externalized Key Management", "refs": ["ASVS V11", "CWE-321"] }
+      ]
+    },
+    {
+      "id": "SECRETS",
+      "name": "Secrets Hygiene Across Code and Git History",
+      "file": "CRYPTO-AND-SECRETS.md",
+      "activation": "always",
+      "standards": ["A07:2025", "ASVS V13"],
+      "checks": [
+        { "id": "SECRETS-01", "title": "Zero Hardcoded Credentials Anywhere in Diff", "refs": ["A07:2025", "ASVS V13", "CWE-798"], "not_applicable_allowed": false },
+        { "id": "SECRETS-02", "title": "Immediate Rotation of Historically Committed Secrets", "refs": ["ASVS V13", "CWE-798"], "not_applicable_allowed": false },
+        { "id": "SECRETS-03", "title": "Ignored Local Environment Files", "refs": ["ASVS V13"] },
+        { "id": "SECRETS-04", "title": "Runtime Secret Injection", "refs": ["ASVS V13", "CWE-526"] }
+      ]
+    },
+    {
+      "id": "ERRORS",
+      "name": "Error Handling and Security Logging",
+      "file": "ERRORS-LOGGING-AND-DATA.md",
+      "activation": "diff_signals",
+      "standards": ["A09:2025", "A10:2025", "ASVS V16"],
+      "checks": [
+        { "id": "ERRORS-01", "title": "Sanitized User-Facing Error Responses", "refs": ["A10:2025", "ASVS V16", "CWE-209"] },
+        { "id": "ERRORS-02", "title": "Fail-Closed Exception Paths", "refs": ["A10:2025", "ASVS V16", "CWE-636"] },
+        { "id": "ERRORS-03", "title": "Structured Audit Logging on Security Events", "refs": ["A09:2025", "ASVS V16", "CWE-778"] },
+        { "id": "ERRORS-04", "title": "Zero Secrets or Raw PII in Logs", "refs": ["A09:2025", "ASVS V16", "CWE-532"] },
+        { "id": "ERRORS-05", "title": "Log Injection Neutralization", "refs": ["A09:2025", "ASVS V16", "CWE-117"] }
+      ]
+    },
+    {
+      "id": "DATA",
+      "name": "Data Protection and LLM Privacy Boundaries",
+      "file": "ERRORS-LOGGING-AND-DATA.md",
+      "activation": "diff_signals",
+      "standards": ["A04:2025", "ASVS V14"],
+      "checks": [
+        { "id": "DATA-01", "title": "Explicit Data Classification", "refs": ["ASVS V14"] },
+        { "id": "DATA-02", "title": "Data Minimization and Defined Retention", "refs": ["ASVS V14", "CWE-359"] },
+        { "id": "DATA-03", "title": "Minimal Response Serialization", "refs": ["API3:2023", "ASVS V14", "CWE-213"] },
+        { "id": "DATA-04", "title": "Encryption at Rest for Regulated Stores", "refs": ["A04:2025", "ASVS V14", "CWE-311"] },
+        { "id": "DATA-05", "title": "Approved Third-Party and LLM Data Egress", "refs": ["ASVS V14"] }
+      ]
+    },
+    {
+      "id": "DEPS",
+      "name": "Software Dependencies and Reachability Analysis",
+      "file": "SUPPLY-CHAIN-AND-CONFIG.md",
+      "activation": "diff_signals",
+      "standards": ["A03:2025", "ASVS V15"],
+      "checks": [
+        { "id": "DEPS-01", "title": "Justified and Actively Maintained Packages", "refs": ["A03:2025", "ASVS V15", "CWE-1104"] },
+        { "id": "DEPS-02", "title": "Verified Exact Package Naming", "refs": ["A03:2025", "CWE-1357"] },
+        { "id": "DEPS-03", "title": "Committed Lockfiles and Pinned Versions", "refs": ["A03:2025", "ASVS V15"] },
+        { "id": "DEPS-04", "title": "Audited Package Lifecycle Scripts", "refs": ["A03:2025", "CWE-829"] },
+        { "id": "DEPS-05", "title": "Policy-Compliant Open-Source Licences", "refs": ["ASVS V15"] },
+        { "id": "DEPS-06", "title": "Function-Level Reachability Triage for CVEs", "refs": ["A03:2025", "CWE-1395"] }
+      ]
+    },
+    {
+      "id": "CONFIG",
+      "name": "Application Configuration, Containers, and CI/CD Workflows",
+      "file": "SUPPLY-CHAIN-AND-CONFIG.md",
+      "activation": "diff_signals",
+      "standards": ["A02:2025", "A03:2025", "ASVS V3", "ASVS V13"],
+      "checks": [
+        { "id": "CONFIG-01", "title": "Disabled Production Debug Modes", "refs": ["A02:2025", "ASVS V13", "CWE-489"] },
+        { "id": "CONFIG-02", "title": "Safe CORS Origin Policies", "refs": ["A02:2025", "ASVS V3", "CWE-942"] },
+        { "id": "CONFIG-03", "title": "Hardened Browser Security Headers", "refs": ["A02:2025", "ASVS V3"] },
+        { "id": "CONFIG-04", "title": "Private Storage and Restricted Network Ingress in IaC", "refs": ["A02:2025", "CWE-732"] },
+        { "id": "CONFIG-05", "title": "Least-Privilege Cloud IAM Policies", "refs": ["A01:2025", "CWE-250"] },
+        { "id": "CONFIG-06", "title": "Non-Root Container Execution", "refs": ["A02:2025", "CWE-250"] },
+        { "id": "CONFIG-07", "title": "Minimal CI Token Permissions and Safe Expression Handling", "refs": ["A03:2025", "CWE-78"] }
+      ]
+    },
+    {
+      "id": "AI",
+      "name": "AI-Generated Pull Request Checks",
+      "file": "AI-GENERATED-PRS.md",
+      "activation": "ai_generated",
+      "standards": ["A01:2025", "A03:2025", "A06:2025", "A07:2025", "ASVS V15"],
+      "checks": [
+        { "id": "AI-01", "title": "Registry Existence and Provenance Verification (Anti-Slopsquatting)", "refs": ["A03:2025", "CWE-1357"] },
+        { "id": "AI-02", "title": "Zero Dropped Security Controls Across Agent Iterations", "refs": ["A06:2025", "ASVS V15"], "not_applicable_allowed": false },
+        { "id": "AI-03", "title": "Zero Placeholder Credentials or Fallback Keys", "refs": ["A07:2025", "CWE-798"] },
+        { "id": "AI-04", "title": "Zero Stubbed Authorization or TODO Security Bypasses", "refs": ["A01:2025", "CWE-862"] },
+        { "id": "AI-05", "title": "Adversarial and Failure-Path Unit Tests", "refs": ["ASVS V15"] }
+      ]
+    }
+  ]
+}

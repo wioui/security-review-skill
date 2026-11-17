@@ -1,0 +1,319 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/wioui/security-review-skill/blob/main/skills/security-review/review-schema.json",
+  "$comment": "Contract for review.json. validate-review.cjs interprets this schema directly, then applies the checklist.json catalog and the review consistency rules. visibleContent is a custom keyword: the string must contain at least one visible character.",
+  "title": "Diff-scoped security review of one code change",
+  "type": "object",
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+    "review": { "$ref": "#/$defs/review" },
+    "stage1": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/stage1_result" }
+    },
+    "domains": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/domain" }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          { "$ref": "#/$defs/confirmed_finding" },
+          { "$ref": "#/$defs/needs_validation_finding" },
+          { "$ref": "#/$defs/rejected_finding" }
+        ]
+      }
+    },
+    "human_review": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/human_review_item" }
+    },
+    "decision": { "type": "string", "enum": ["approve", "comment", "request_changes"] }
+  },
+  "required": ["schema_version", "review", "stage1", "domains", "findings", "human_review", "decision"],
+  "additionalProperties": false,
+  "$defs": {
+    "text": { "type": "string", "minLength": 1, "maxLength": 8000, "visibleContent": true },
+    "repo_path": { "type": "string", "minLength": 1, "maxLength": 1024 },
+    "git_sha": { "type": "string", "pattern": "^[0-9a-f]{7,64}$" },
+    "fingerprint": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+-]*$",
+      "description": "Stable, source-derived identifier: <check-id>:<repository-relative path>:<symbol>. No line numbers, reviewers, severities, or verdicts."
+    },
+    "check_id": {
+      "type": "string",
+      "pattern": "^(AUTHN|AUTHZ|SESSION|INJECTION|API|FILES|LOGIC|CRYPTO|SECRETS|ERRORS|DATA|DEPS|CONFIG|AI)-[0-9]{2}$"
+    },
+    "domain_id": {
+      "type": "string",
+      "enum": ["AUTHN", "AUTHZ", "SESSION", "INJECTION", "API", "FILES", "LOGIC", "CRYPTO", "SECRETS", "ERRORS", "DATA", "DEPS", "CONFIG", "AI"]
+    },
+    "standard_ref": {
+      "type": "string",
+      "pattern": "^(A(0[1-9]|10):2025|API([1-9]|10):2023|ASVS V([1-9]|1[0-7])(\\.[0-9]{1,3}){0,2}|CWE-[1-9][0-9]{0,4})$",
+      "description": "OWASP Top 10:2025 (A01:2025), OWASP API Security Top 10:2023 (API1:2023), OWASP ASVS 5.0 chapter, section, or requirement (ASVS V8, ASVS V8.2.1), or MITRE CWE (CWE-639)."
+    },
+    "standard_refs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/standard_ref" }
+    },
+    "text_list": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/text" }
+    },
+    "severity_level": { "type": "string", "enum": ["informational", "low", "medium", "high", "critical"] },
+    "scored_reason": {
+      "type": "object",
+      "properties": {
+        "score": { "$ref": "#/$defs/severity_level" },
+        "reason": { "$ref": "#/$defs/text" }
+      },
+      "required": ["score", "reason"],
+      "additionalProperties": false
+    },
+    "trace": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": { "type": "string", "enum": ["entrypoint", "propagation", "sink"] },
+          "file": { "$ref": "#/$defs/repo_path" },
+          "line": { "type": "integer", "minimum": 1 },
+          "scope": { "$ref": "#/$defs/text" },
+          "description": { "$ref": "#/$defs/text" }
+        },
+        "required": ["kind", "file", "line", "scope", "description"],
+        "additionalProperties": false
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "properties": {
+          "file": { "$ref": "#/$defs/repo_path" },
+          "line": { "type": "integer", "minimum": 1 },
+          "description": { "$ref": "#/$defs/text" }
+        },
+        "required": ["file", "line", "description"],
+        "additionalProperties": false
+      }
+    },
+    "review": {
+      "type": "object",
+      "properties": {
+        "repo": { "$ref": "#/$defs/text" },
+        "pull_request": { "$ref": "#/$defs/text" },
+        "base_ref": { "$ref": "#/$defs/text" },
+        "base_sha": { "$ref": "#/$defs/git_sha" },
+        "head_ref": { "$ref": "#/$defs/text" },
+        "head_sha": { "$ref": "#/$defs/git_sha" },
+        "profile": { "type": "string", "enum": ["quick", "standard", "deep"] },
+        "diff": {
+          "type": "object",
+          "properties": {
+            "files_changed": { "type": "integer", "minimum": 0 },
+            "additions": { "type": "integer", "minimum": 0 },
+            "deletions": { "type": "integer", "minimum": 0 }
+          },
+          "required": ["files_changed", "additions", "deletions"],
+          "additionalProperties": false
+        },
+        "ai_generated": {
+          "type": "object",
+          "properties": {
+            "detected": { "type": "boolean" },
+            "signals": { "$ref": "#/$defs/text_list" }
+          },
+          "required": ["detected", "signals"],
+          "additionalProperties": false
+        },
+        "linked_requirements": { "$ref": "#/$defs/text_list" },
+        "excluded_paths": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": { "$ref": "#/$defs/repo_path" },
+              "reason": { "$ref": "#/$defs/text" }
+            },
+            "required": ["path", "reason"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["repo", "base_ref", "base_sha", "head_ref", "head_sha", "profile", "diff", "ai_generated", "linked_requirements"],
+      "additionalProperties": false
+    },
+    "stage1_result": {
+      "type": "object",
+      "properties": {
+        "tool": { "$ref": "#/$defs/text" },
+        "status": { "type": "string", "enum": ["ran", "unavailable", "skipped", "failed"] },
+        "scope": { "$ref": "#/$defs/text" },
+        "summary": { "$ref": "#/$defs/text" }
+      },
+      "required": ["tool", "status", "summary"],
+      "additionalProperties": false
+    },
+    "domain": {
+      "type": "object",
+      "properties": {
+        "id": { "$ref": "#/$defs/domain_id" },
+        "status": { "type": "string", "enum": ["active", "not_applicable"] },
+        "reason": { "$ref": "#/$defs/text" },
+        "checks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/check_result" }
+        }
+      },
+      "required": ["id", "status", "reason", "checks"],
+      "additionalProperties": false
+    },
+    "check_result": {
+      "type": "object",
+      "properties": {
+        "id": { "$ref": "#/$defs/check_id" },
+        "result": { "type": "string", "enum": ["pass", "fail", "needs_validation", "hardening", "not_applicable"] },
+        "note": { "$ref": "#/$defs/text" },
+        "paths": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/repo_path" }
+        },
+        "findings": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/fingerprint" }
+        }
+      },
+      "required": ["id", "result", "note", "paths", "findings"],
+      "additionalProperties": false
+    },
+    "confirmed_finding": {
+      "type": "object",
+      "description": "A source-grounded security defect with a concrete exploit path, independently validated.",
+      "properties": {
+        "verdict": { "type": "string", "const": "confirmed" },
+        "fingerprint": { "$ref": "#/$defs/fingerprint" },
+        "check_id": { "$ref": "#/$defs/check_id" },
+        "title": { "$ref": "#/$defs/text" },
+        "description": { "$ref": "#/$defs/text" },
+        "refs": { "$ref": "#/$defs/standard_refs" },
+        "in_diff": { "type": "boolean" },
+        "merge_blocking": { "type": "boolean" },
+        "root_cause": { "$ref": "#/$defs/text" },
+        "exploit_path": { "$ref": "#/$defs/text" },
+        "conditions": { "$ref": "#/$defs/text_list" },
+        "trace": { "$ref": "#/$defs/trace" },
+        "evidence": { "$ref": "#/$defs/evidence" },
+        "remediation": {
+          "type": "object",
+          "properties": {
+            "strategy": { "$ref": "#/$defs/text" },
+            "suggested_change": { "type": "string", "minLength": 1, "maxLength": 20000 },
+            "regression_test": { "$ref": "#/$defs/text" }
+          },
+          "required": ["strategy"],
+          "additionalProperties": false
+        },
+        "severity": {
+          "type": "object",
+          "properties": {
+            "likelihood": { "$ref": "#/$defs/scored_reason" },
+            "impact": { "$ref": "#/$defs/scored_reason" },
+            "overall_severity": { "$ref": "#/$defs/severity_level" }
+          },
+          "required": ["likelihood", "impact", "overall_severity"],
+          "additionalProperties": false
+        },
+        "confidence": {
+          "type": "object",
+          "properties": {
+            "score": { "type": "string", "enum": ["low", "medium", "high"] },
+            "reason": { "$ref": "#/$defs/text" }
+          },
+          "required": ["score", "reason"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["verdict", "fingerprint", "check_id", "title", "description", "refs", "in_diff", "merge_blocking", "root_cause", "exploit_path", "conditions", "trace", "evidence", "remediation", "severity", "confidence"],
+      "additionalProperties": false
+    },
+    "needs_validation_finding": {
+      "type": "object",
+      "description": "A source-grounded candidate whose decisive fact lives outside the repository. No severity.",
+      "properties": {
+        "verdict": { "type": "string", "const": "needs_validation" },
+        "fingerprint": { "$ref": "#/$defs/fingerprint" },
+        "check_id": { "$ref": "#/$defs/check_id" },
+        "title": { "$ref": "#/$defs/text" },
+        "description": { "$ref": "#/$defs/text" },
+        "refs": { "$ref": "#/$defs/standard_refs" },
+        "in_diff": { "type": "boolean" },
+        "claimed_root_cause": { "$ref": "#/$defs/text" },
+        "trace": { "$ref": "#/$defs/trace" },
+        "evidence": { "$ref": "#/$defs/evidence" },
+        "blockers": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/text" }
+        },
+        "validation_plan": {
+          "type": "object",
+          "properties": {
+            "local": { "$ref": "#/$defs/text" },
+            "owner": { "$ref": "#/$defs/text" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["verdict", "fingerprint", "check_id", "title", "description", "refs", "in_diff", "claimed_root_cause", "trace", "evidence", "blockers", "validation_plan"],
+      "additionalProperties": false
+    },
+    "rejected_finding": {
+      "type": "object",
+      "description": "A candidate refuted during validation, kept so later reviews do not repeat it.",
+      "properties": {
+        "verdict": { "type": "string", "const": "rejected" },
+        "fingerprint": { "$ref": "#/$defs/fingerprint" },
+        "check_id": { "$ref": "#/$defs/check_id" },
+        "title": { "$ref": "#/$defs/text" },
+        "description": { "$ref": "#/$defs/text" },
+        "claimed_root_cause": { "$ref": "#/$defs/text" },
+        "trace": { "$ref": "#/$defs/trace" },
+        "evidence": { "$ref": "#/$defs/evidence" },
+        "reason": { "$ref": "#/$defs/text" }
+      },
+      "required": ["verdict", "fingerprint", "check_id", "title", "description", "claimed_root_cause", "trace", "evidence", "reason"],
+      "additionalProperties": false
+    },
+    "human_review_item": {
+      "type": "object",
+      "properties": {
+        "topic": {
+          "type": "string",
+          "enum": ["authorization_semantics", "multi_tenant_architecture", "data_governance", "dependency_necessity", "business_logic", "data_egress", "control_regression", "policy_exception"]
+        },
+        "question": { "$ref": "#/$defs/text" }
+      },
+      "required": ["topic", "question"],
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,29 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions: {}
+
+jobs:
+  test:
+    name: Validator and consistency tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Show Node.js version
+        run: node --version
+
+      - name: Run tests
+        run: node --test
+
+      - name: Validate the example review
+        run: node skills/security-review/validate-review.cjs skills/security-review/review.example.json

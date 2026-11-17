@@ -1,0 +1,563 @@
+{
+  "schema_version": "1.0",
+  "review": {
+    "repo": "acme/billing-api",
+    "pull_request": "https://github.com/acme/billing-api/pull/482",
+    "base_ref": "origin/main",
+    "base_sha": "4f1c2a9e7b3d5f60812a4c9e0b7d3f2a1c5e8b90",
+    "head_ref": "claude/invoice-pdf-and-stripe-webhook",
+    "head_sha": "9b8e7d6c5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d",
+    "profile": "standard",
+    "diff": { "files_changed": 9, "additions": 412, "deletions": 37 },
+    "ai_generated": {
+      "detected": true,
+      "signals": [
+        "Co-authored-by trailer naming an AI coding agent on 4 of 4 commits",
+        "Head branch prefix claude/"
+      ]
+    },
+    "linked_requirements": [
+      "Issue #471: the Stripe webhook must verify the Stripe-Signature header and be rate limited",
+      "Issue #471: invoice PDFs are visible only to members of the owning tenant"
+    ],
+    "excluded_paths": [
+      { "path": "tests/fixtures/invoice-sample.pdf", "reason": "Binary test fixture; kept in scope for the secret scan only" }
+    ]
+  },
+  "stage1": [
+    {
+      "tool": "pattern-sweep",
+      "status": "ran",
+      "scope": "Added and removed lines in 4f1c2a9...9b8e7d6",
+      "summary": "Two leads: construct_event removed from app/api/webhooks.py; tenant_id declared as a query parameter in app/api/invoices.py"
+    },
+    {
+      "tool": "gitleaks",
+      "status": "ran",
+      "scope": "Commits 4f1c2a9..9b8e7d6 with --redact",
+      "summary": "No leaks in the 4 branch commits"
+    },
+    {
+      "tool": "semgrep",
+      "status": "unavailable",
+      "summary": "Not installed on the review host; not installed by the reviewer"
+    },
+    {
+      "tool": "registry-metadata",
+      "status": "skipped",
+      "summary": "No new dependencies: requirements.txt is unchanged"
+    }
+  ],
+  "domains": [
+    {
+      "id": "AUTHN",
+      "status": "active",
+      "reason": "New routes: GET /api/invoices/{invoice_id}/pdf and public POST /api/v1/webhooks/stripe",
+      "checks": [
+        {
+          "id": "AUTHN-01",
+          "result": "pass",
+          "note": "The invoice route inherits Depends(require_authenticated_principal) from the invoices router; the webhook is an explicit @public_endpoint opt-out documented in the PR description.",
+          "paths": ["app/api/invoices.py", "app/api/webhooks.py", "app/main.py"],
+          "findings": []
+        },
+        {
+          "id": "AUTHN-02",
+          "result": "pass",
+          "note": "Authentication delegates to the existing OIDC dependency in app/auth/dependencies.py; the diff adds no credential parsing.",
+          "paths": ["app/auth/dependencies.py", "app/api/invoices.py"],
+          "findings": []
+        },
+        {
+          "id": "AUTHN-03",
+          "result": "not_applicable",
+          "note": "No password storage or comparison code in the diff.",
+          "paths": [],
+          "findings": []
+        },
+        {
+          "id": "AUTHN-04",
+          "result": "not_applicable",
+          "note": "No login, reset, MFA, or token endpoints in the diff.",
+          "paths": [],
+          "findings": []
+        },
+        {
+          "id": "AUTHN-05",
+          "result": "not_applicable",
+          "note": "No MFA flow changes.",
+          "paths": [],
+          "findings": []
+        },
+        {
+          "id": "AUTHN-06",
+          "result": "not_applicable",
+          "note": "No account recovery changes.",
+          "paths": [],
+          "findings": []
+        }
+      ]
+    },
+    {
+      "id": "AUTHZ",
+      "status": "active",
+      "reason": "New lookup by invoice ID with tenant scoping; the webhook enqueues jobs that act on invoice IDs",
+      "checks": [
+        {
+          "id": "AUTHZ-01",
+          "result": "pass",
+          "note": "download_invoice_pdf calls InvoiceService.render_invoice_pdf, which runs require_permission(principal, \"invoice:read\") before rendering.",
+          "paths": ["app/api/invoices.py", "app/services/invoices.py"],
+          "findings": []
+        },
+        {
+          "id": "AUTHZ-02",
+          "result": "pass",
+          "note": "The new invoice:read permission is added to the role map; unmapped actions fall through to deny in app/auth/policy.py.",
+          "paths": ["app/auth/policy.py"],
+          "findings": []
+        },
+        {
+          "id": "AUTHZ-03",
+          "result": "pass",
+          "note": "The role check lives inside render_invoice_pdf, so the CLI export command that calls the same service is covered.",
+          "paths": ["app/services/invoices.py", "app/cli/export.py"],
+          "findings": ["AUTHZ-03:app/services/invoices.py:render_invoice_pdf"]
+        },
+        {
+          "id": "AUTHZ-04",
+          "result": "fail",
+          "note": "The lookup filters on Invoice.id and a tenant_id taken from the query string, so it is not scoped to the caller.",
+          "paths": ["app/api/invoices.py"],
+          "findings": ["AUTHZ-05:app/api/invoices.py:download_invoice_pdf"]
+        },
+        {
+          "id": "AUTHZ-05",
+          "result": "fail",
+          "note": "tenant_id is a query parameter of download_invoice_pdf instead of principal.tenant_id.",
+          "paths": ["app/api/invoices.py"],
+          "findings": ["AUTHZ-05:app/api/invoices.py:download_invoice_pdf"]
+        },
+        {
+          "id": "AUTHZ-06",
+          "result": "not_applicable",
+          "note": "No list, search, or export endpoint in the diff.",
+          "paths": [],
+          "findings": []
+        },
+        {
+          "id": "AUTHZ-07",
+          "result": "not_applicable",
+          "note": "The diff adds no update or delete handlers; invoice state changes happen in the external billing worker (see AUTHZ-08).",
+          "paths": [],
+          "findings": []
+        },
+        {
+          "id": "AUTHZ-08",
+          "result": "needs_validation",
+          "note": "The webhook enqueues invoice IDs for a consumer that lives in another repository.",
+          "paths": ["app/api/webhooks.py", "app/billing/events.py"],
+          "findings": ["AUTHZ-08:app/billing/events.py:enqueue_invoice_job"]
+        },
+        {
+          "id": "AUTHZ-09",
+          "result": "not_applicable",
+          "note": "No cookie-authenticated mutations: invoice routes use bearer tokens and the webhook is server-to-server.",
+          "paths": [],
+          "findings": []
+        }
+      ]
+    },
+    {
+      "id": "SESSION",
+      "status": "not_applicable",
+      "reason": "No session, cookie, JWT, refresh-token, or logout code in the diff; routes reuse the existing bearer-token dependency.",
+      "checks": []
+    },
+    {
+      "id": "INJECTION",
+      "status": "not_applicable",
+      "reason": "No raw queries, template rendering, subprocess calls, outbound fetchers, or deserializers; the ORM filter binds parameters and invoice_id is a typed path parameter.",
+      "checks": []
+    },
+    {
+      "id": "API",
+      "status": "active",
+      "reason": "New REST route and a new webhook receiver",
+      "checks": [
+        {
+          "id": "API-01",
+          "result": "pass",
+          "note": "No new versioned or internal route groups; both routes register on existing routers in app/main.py.",
+          "paths": ["app/main.py"],
+          "findings": []
+        },
+        {
+          "id": "API-02",
+          "result": "fail",
+          "note": "invoice_id is not authorized against the caller's tenant; same root cause as AUTHZ-05.",
+          "paths": ["app/api/invoices.py"],
+          "findings": ["AUTHZ-05:app/api/invoices.py:download_invoice_pdf"]
+        },
+        {
+          "id": "API-03",
+          "result": "not_applicable",
+          "note": "No request bodies bound to models in the diff.",
+          "paths": [],
+          "findings": []
+        },
+        {
+          "id": "API-04",
+          "result": "pass",
+          "note": "invoice_id is a typed int path parameter; FastAPI rejects type mismatches with 422.",
+          "paths": ["app/api/invoices.py"],
+          "findings": []
+        },
+        {
+          "id": "API-05",
+          "result": "not_applicable",
+          "note": "No collection endpoints.",
+          "paths": [],
+          "findings": []
+        },
+        {
+          "id": "API-06",
+          "result": "not_applicable",
+          "note": "No GraphQL changes.",
+          "paths": [],
+          "findings": []
+        },
+        {
+          "id": "API-07",
+          "result": "fail",
+          "note": "The webhook parses the body with request.json() and never verifies the Stripe-Signature header.",
+          "paths": ["app/api/webhooks.py"],
+          "findings": ["API-07:app/api/webhooks.py:stripe_webhook"]
+        }
+      ]
+    },
+    {
+      "id": "FILES",
+      "status": "not_applicable",
+      "reason": "PDFs are rendered in memory and streamed; no filesystem paths from input, uploads, archives, or XML parsing.",
+      "checks": []
+    },
+    {
+      "id": "LOGIC",
+      "status": "not_applicable",
+      "reason": "No pricing, balance, quota, or workflow transition code in this repository's diff; payment state changes happen in the external billing worker.",
+      "checks": []
+    },
+    {
+      "id": "CRYPTO",
+      "status": "not_applicable",
+      "reason": "No cryptographic primitives, randomness, key loading, or TLS client changes; webhook signature verification belongs to API-07.",
+      "checks": []
+    },
+    {
+      "id": "SECRETS",
+      "status": "active",
+      "reason": "Always active; the diff also adds STRIPE_WEBHOOK_SECRET to the settings",
+      "checks": [
+        {
+          "id": "SECRETS-01",
+          "result": "pass",
+          "note": "gitleaks reports no secrets in the diff; STRIPE_WEBHOOK_SECRET is read from the environment through settings.",
+          "paths": ["app/settings.py", "app/api/webhooks.py"],
+          "findings": []
+        },
+        {
+          "id": "SECRETS-02",
+          "result": "pass",
+          "note": "gitleaks over all 4 branch commits found no secret added and later removed.",
+          "paths": ["app/settings.py", "app/api/webhooks.py", "tests/test_webhooks.py"],
+          "findings": []
+        },
+        {
+          "id": "SECRETS-03",
+          "result": "hardening",
+          "note": ".dockerignore does not exclude .env files. No .env file is committed and the Dockerfile copies only app/, so nothing leaks today; add .env* to .dockerignore.",
+          "paths": [".dockerignore", "Dockerfile"],
+          "findings": []
+        },
+        {
+          "id": "SECRETS-04",
+          "result": "not_applicable",
+          "note": "No Dockerfile or build changes.",
+          "paths": [],
+          "findings": []
+        }
+      ]
+    },
+    {
+      "id": "ERRORS",
+      "status": "not_applicable",
+      "reason": "No exception handlers, error responses, or logging changes in the diff.",
+      "checks": []
+    },
+    {
+      "id": "DATA",
+      "status": "not_applicable",
+      "reason": "No new columns, serializers, analytics, or LLM calls; invoice PDF content is unchanged.",
+      "checks": []
+    },
+    {
+      "id": "DEPS",
+      "status": "not_applicable",
+      "reason": "No manifest or lockfile changes.",
+      "checks": []
+    },
+    {
+      "id": "CONFIG",
+      "status": "not_applicable",
+      "reason": "No Docker, IaC, CI, CORS, header, or settings-profile changes.",
+      "checks": []
+    },
+    {
+      "id": "AI",
+      "status": "active",
+      "reason": "Co-authored-by trailers on every commit and a claude/ head branch",
+      "checks": [
+        {
+          "id": "AI-01",
+          "result": "not_applicable",
+          "note": "No new packages; stripe was already pinned in requirements.txt.",
+          "paths": [],
+          "findings": []
+        },
+        {
+          "id": "AI-02",
+          "result": "fail",
+          "note": "Commit a1b2c3d used stripe.Webhook.construct_event and @limiter.limit(\"60/minute\") as issue #471 requires; commit c3d4e5f replaced both with request.json() to make tests/test_webhooks.py pass.",
+          "paths": ["app/api/webhooks.py", "tests/test_webhooks.py"],
+          "findings": ["API-07:app/api/webhooks.py:stripe_webhook"]
+        },
+        {
+          "id": "AI-03",
+          "result": "pass",
+          "note": "No defaulted secret lookups: STRIPE_WEBHOOK_SECRET is a required settings field with no default.",
+          "paths": ["app/settings.py"],
+          "findings": []
+        },
+        {
+          "id": "AI-04",
+          "result": "pass",
+          "note": "No TODO bypasses, stub permission functions, or authentication-disabling switches in the added lines.",
+          "paths": ["app/api/invoices.py", "app/api/webhooks.py", "app/services/invoices.py", "app/auth/policy.py"],
+          "findings": []
+        },
+        {
+          "id": "AI-05",
+          "result": "hardening",
+          "note": "tests/test_invoices.py covers only the 200 path and tests/test_webhooks.py posts unsigned events expecting 200. Add cross-tenant 404 and invalid-signature 400 tests with the fixes.",
+          "paths": ["tests/test_invoices.py", "tests/test_webhooks.py"],
+          "findings": []
+        }
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "verdict": "confirmed",
+      "fingerprint": "API-07:app/api/webhooks.py:stripe_webhook",
+      "check_id": "API-07",
+      "title": "Stripe webhook processes unsigned events",
+      "description": "The Stripe webhook parses the request body as JSON and passes it to process_verified_event without verifying the Stripe-Signature header, so anyone on the internet can submit forged billing events.",
+      "refs": ["ASVS V4", "CWE-345", "CWE-347"],
+      "in_diff": true,
+      "merge_blocking": true,
+      "root_cause": "Commit c3d4e5f replaced stripe.Webhook.construct_event(payload, sig_header, settings.STRIPE_WEBHOOK_SECRET) with await request.json() so that tests posting unsigned payloads would pass.",
+      "exploit_path": "An unauthenticated internet client POSTs a forged invoice.paid event for any invoice ID to /api/v1/webhooks/stripe; process_verified_event treats it as verified and enqueues the invoice as paid.",
+      "conditions": ["The webhook route is public by design (documented opt-out)."],
+      "trace": [
+        {
+          "kind": "entrypoint",
+          "file": "app/api/webhooks.py",
+          "line": 14,
+          "scope": "stripe_webhook",
+          "description": "Public POST /api/v1/webhooks/stripe receives the request."
+        },
+        {
+          "kind": "propagation",
+          "file": "app/api/webhooks.py",
+          "line": 16,
+          "scope": "stripe_webhook",
+          "description": "event = await request.json() parses attacker-controlled JSON without signature verification."
+        },
+        {
+          "kind": "sink",
+          "file": "app/billing/events.py",
+          "line": 22,
+          "scope": "process_verified_event",
+          "description": "The unverified event is enqueued as a trusted billing event."
+        }
+      ],
+      "evidence": [
+        {
+          "file": "app/api/webhooks.py",
+          "line": 16,
+          "description": "Neither construct_event nor the Stripe-Signature header is used at the head SHA."
+        },
+        {
+          "file": "tests/test_webhooks.py",
+          "line": 9,
+          "description": "The test posts an unsigned payload and asserts 200, which drove the regression."
+        }
+      ],
+      "remediation": {
+        "strategy": "Restore signature verification over the raw body before any parsing and reject failures with 400; restore the rate limit that issue #471 requires.",
+        "suggested_change": "payload = await request.body()\nsig_header = request.headers.get(\"Stripe-Signature\", \"\")\ntry:\n    event = stripe.Webhook.construct_event(payload, sig_header, settings.STRIPE_WEBHOOK_SECRET)\nexcept (ValueError, stripe.SignatureVerificationError):\n    raise HTTPException(status_code=400, detail=\"Invalid signature\")",
+        "regression_test": "Post events with a missing and an invalid Stripe-Signature header and assert 400; sign test payloads with a test webhook secret instead of disabling verification."
+      },
+      "severity": {
+        "likelihood": { "score": "high", "reason": "The endpoint is public by design and needs no credentials." },
+        "impact": { "score": "high", "reason": "Forged events can mark arbitrary invoices as paid and trigger provisioning." },
+        "overall_severity": "high"
+      },
+      "confidence": {
+        "score": "high",
+        "reason": "The branch history shows the control being removed, and no other verification layer exists at the head SHA."
+      }
+    },
+    {
+      "verdict": "rejected",
+      "fingerprint": "AUTHZ-03:app/services/invoices.py:render_invoice_pdf",
+      "check_id": "AUTHZ-03",
+      "title": "Invoice PDF rendering relies on route middleware only",
+      "description": "A reviewer suspected that the CLI export path reaches render_invoice_pdf without the route's permission check.",
+      "claimed_root_cause": "render_invoice_pdf was assumed to rely on route middleware for its role check.",
+      "trace": [
+        {
+          "kind": "sink",
+          "file": "app/services/invoices.py",
+          "line": 58,
+          "scope": "render_invoice_pdf",
+          "description": "Service function shared by the HTTP route and the CLI export command."
+        }
+      ],
+      "evidence": [
+        {
+          "file": "app/services/invoices.py",
+          "line": 58,
+          "description": "require_permission(principal, \"invoice:read\") runs inside the service before rendering."
+        }
+      ],
+      "reason": "The role check lives inside the service function, so every entry point, including app/cli/export.py, is covered. Tenant scoping is a separate root cause tracked under AUTHZ-05."
+    },
+    {
+      "verdict": "confirmed",
+      "fingerprint": "AUTHZ-05:app/api/invoices.py:download_invoice_pdf",
+      "check_id": "AUTHZ-05",
+      "title": "Invoice download trusts a client-supplied tenant_id",
+      "description": "download_invoice_pdf scopes the invoice lookup with a tenant_id query parameter instead of the authenticated principal, so any authenticated user can download another tenant's invoices.",
+      "refs": ["A01:2025", "ASVS V8", "API1:2023", "CWE-639"],
+      "in_diff": true,
+      "merge_blocking": true,
+      "root_cause": "The handler declares tenant_id: str as a query parameter and filters on Invoice.tenant_id == tenant_id; principal.tenant_id is never used, and the service's role check does not compare tenants.",
+      "exploit_path": "A user of tenant A calls GET /api/invoices/4812/pdf?tenant_id=<tenant B> and receives tenant B's invoice PDF.",
+      "conditions": ["The caller holds any valid session."],
+      "trace": [
+        {
+          "kind": "entrypoint",
+          "file": "app/api/invoices.py",
+          "line": 31,
+          "scope": "download_invoice_pdf",
+          "description": "Authenticated GET route accepts invoice_id and a tenant_id query parameter."
+        },
+        {
+          "kind": "propagation",
+          "file": "app/api/invoices.py",
+          "line": 38,
+          "scope": "download_invoice_pdf",
+          "description": "The ORM query filters on the client-supplied tenant_id."
+        },
+        {
+          "kind": "sink",
+          "file": "app/services/invoices.py",
+          "line": 61,
+          "scope": "render_invoice_pdf",
+          "description": "The foreign invoice is rendered and streamed to the caller."
+        }
+      ],
+      "evidence": [
+        {
+          "file": "app/api/invoices.py",
+          "line": 38,
+          "description": "Invoice.tenant_id == tenant_id uses the query parameter."
+        },
+        {
+          "file": "app/services/invoices.py",
+          "line": 58,
+          "description": "require_permission(principal, \"invoice:read\") checks the role only; it never compares invoice.tenant_id with principal.tenant_id."
+        }
+      ],
+      "remediation": {
+        "strategy": "Derive the tenant from the verified principal, scope the lookup to it, and return 404 when the scoped lookup finds nothing.",
+        "suggested_change": "invoice = db.query(Invoice).filter(\n    Invoice.id == invoice_id,\n    Invoice.tenant_id == principal.tenant_id,\n).one_or_none()\nif invoice is None:\n    raise HTTPException(status_code=404, detail=\"Invoice not found\")",
+        "regression_test": "Request another tenant's invoice ID, with and without a tenant_id parameter, and assert 404."
+      },
+      "severity": {
+        "likelihood": { "score": "high", "reason": "Any authenticated user can change one query parameter." },
+        "impact": { "score": "high", "reason": "Cross-tenant disclosure of invoice PDFs that contain customer billing data." },
+        "overall_severity": "high"
+      },
+      "confidence": {
+        "score": "high",
+        "reason": "The source trace is complete and no middleware, ORM default scope, or row-level security binds the tenant."
+      }
+    },
+    {
+      "verdict": "needs_validation",
+      "fingerprint": "AUTHZ-08:app/billing/events.py:enqueue_invoice_job",
+      "check_id": "AUTHZ-08",
+      "title": "External billing worker may act on invoice IDs without re-verifying the tenant",
+      "description": "The webhook path enqueues jobs that carry only an invoice ID taken from the event; the consumer lives in another repository, so whether it re-verifies tenant ownership cannot be established here.",
+      "refs": ["A01:2025", "CWE-863"],
+      "in_diff": true,
+      "claimed_root_cause": "enqueue_invoice_job sends invoice_id from the event payload with no trusted tenant envelope, and the consumer's scoping is not visible.",
+      "trace": [
+        {
+          "kind": "entrypoint",
+          "file": "app/api/webhooks.py",
+          "line": 14,
+          "scope": "stripe_webhook",
+          "description": "Webhook events reach the billing event processor."
+        },
+        {
+          "kind": "sink",
+          "file": "app/billing/events.py",
+          "line": 22,
+          "scope": "enqueue_invoice_job",
+          "description": "The job payload carries only invoice_id from the event."
+        }
+      ],
+      "evidence": [
+        {
+          "file": "app/billing/events.py",
+          "line": 22,
+          "description": "enqueue_invoice_job(invoice_id=event[\"data\"][\"object\"][\"id\"]) publishes to the billing-jobs queue without a tenant envelope."
+        }
+      ],
+      "blockers": ["The billing-jobs consumer (acme/billing-worker) is not part of this repository."],
+      "validation_plan": {
+        "owner": "Ask the billing-worker owners to confirm that the consumer reloads each invoice scoped to a tenant from a trusted envelope before acting, and to link that code.",
+        "local": "After fixing API-07, add a test asserting that enqueued jobs carry the tenant resolved from the verified Stripe account mapping, not from free-form event metadata."
+      }
+    }
+  ],
+  "human_review": [
+    {
+      "topic": "authorization_semantics",
+      "question": "Should support staff (role support_agent) be able to download invoice PDFs across tenants? The fixed code would deny it; confirm this matches the support contract."
+    },
+    {
+      "topic": "control_regression",
+      "question": "Issue #471 requires a rate limit on the Stripe webhook, and commit c3d4e5f removed @limiter.limit(\"60/minute\"). Confirm it must be restored with the signature check."
+    },
+    {
+      "topic": "policy_exception",
+      "question": "The Stripe webhook is a deliberate public route. Confirm the opt-out is recorded in the route inventory."
+    }
+  ],
+  "decision": "request_changes"
+}
