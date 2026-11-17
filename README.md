@@ -9,12 +9,6 @@ A coding-agent skill that turns your agent into a diff-scoped secure code review
 
 The checklist comes from the article [Secure Code Review Checklist for AI-Generated Pull Requests](https://blog.ogwilliam.com/post/ai-secure-code-review-checklist-owasp-asvs). The skill format (operating modes, phase files, domain companions with core discipline and validation rules, a JSON contract, and a zero-dependency validator) is inspired by Cloudflare's [security-audit-skill](https://github.com/cloudflare/security-audit-skill). Where `security-audit` hunts through a whole codebase, `security-review` governs one change at the merge boundary.
 
-## Why
-
-AI coding agents open pull requests that compile, pass their own tests, and still ship exploitable flaws. Across Carnegie Mellon University's SusVibes benchmark and Endor Labs' Agent Security League (34 agent and model pairings on 200 real-world open-source tasks), top configurations reach up to 91.6% functional correctness but peak at 36.9% to 37.4% security correctness: more than 80% of functionally passing patches remain vulnerable for most models. Green CI is not evidence of safety.
-
-Agents also fail in ways human reviewers rarely look for: hallucinated package names that attackers register (slopsquatting), fallback secrets such as `os.getenv("JWT_SECRET", "default-secret")`, stubbed authorization, tautological happy-path tests, and security controls silently deleted between commits while the agent was "fixing" a failing test.
-
 ## What it does
 
 The skill runs a review in six phases:
